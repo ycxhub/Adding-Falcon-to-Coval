@@ -1,0 +1,139 @@
+{
+  "provider": "cartesia",
+  "model": "sonic-3.5",
+  "voice": "db6b0ed5-d5d3-463d-ae85-518a07d3c2b4",
+  "trials_ok": 10,
+  "trials_failed": 0,
+  "methodology": "coval-perceived-ttfa",
+  "ttfa_ms": {
+    "median": 271.26367332766483,
+    "mean": 290.5547842269842,
+    "min": 211.83409590476268,
+    "max": 480.70543820861644
+  },
+  "arrival_ms": {
+    "median": 159.10985449999959,
+    "mean": 170.42780010000016,
+    "min": 132.21412500000085,
+    "max": 321.0682499999997
+  },
+  "silence_ms": {
+    "median": 120.72562358276643,
+    "mean": 120.12698412698414,
+    "min": 41.904761904761905,
+    "max": 162.63038548752834
+  },
+  "trials": [
+    {
+      "arrival_ms": 165.88133299999976,
+      "silence_ms": 137.687074829932,
+      "ttfa_ms": 303.56840782993174,
+      "audio_bytes": 606816,
+      "sample_rate": 44100,
+      "silence_degraded": false,
+      "trial": 1,
+      "prompt_id": "A2",
+      "error": null
+    },
+    {
+      "arrival_ms": 157.81825000000003,
+      "silence_ms": 110.74829931972789,
+      "ttfa_ms": 268.5665493197279,
+      "audio_bytes": 1439424,
+      "sample_rate": 44100,
+      "silence_degraded": false,
+      "trial": 2,
+      "prompt_id": "A1",
+      "error": null
+    },
+    {
+      "arrival_ms": 148.11095900000026,
+      "silence_ms": 107.75510204081633,
+      "ttfa_ms": 255.8660610408166,
+      "audio_bytes": 620928,
+      "sample_rate": 44100,
+      "silence_degraded": false,
+      "trial": 3,
+      "prompt_id": "A5",
+      "error": null
+    },
+    {
+      "arrival_ms": 321.0682499999997,
+      "silence_ms": 159.63718820861678,
+      "ttfa_ms": 480.70543820861644,
+      "audio_bytes": 642096,
+      "sample_rate": 44100,
+      "silence_degraded": false,
+      "trial": 4,
+      "prompt_id": "A10",
+      "error": null
+    },
+    {
+      "arrival_ms": 135.77120800000043,
+      "silence_ms": 122.72108843537414,
+      "ttfa_ms": 258.49229643537456,
+      "audio_bytes": 472752,
+      "sample_rate": 44100,
+      "silence_degraded": false,
+      "trial": 5,
+      "prompt_id": "A7",
+      "error": null
+    },
+    {
+      "arrival_ms": 132.21412500000085,
+      "silence_ms": 162.63038548752834,
+      "ttfa_ms": 294.8445104875292,
+      "audio_bytes": 359856,
+      "sample_rate": 44100,
+      "silence_degraded": false,
+      "trial": 6,
+      "prompt_id": "A6",
+      "error": null
+    },
+    {
+      "arrival_ms": 170.1966250000009,
+      "silence_ms": 103.7641723356009,
+      "ttfa_ms": 273.9607973356018,
+      "audio_bytes": 627984,
+      "sample_rate": 44100,
+      "silence_degraded": false,
+      "trial": 7,
+      "prompt_id": "A9",
+      "error": null
+    },
+    {
+      "arrival_ms": 160.40145899999914,
+      "silence_ms": 135.69160997732428,
+      "ttfa_ms": 296.0930689773234,
+      "audio_bytes": 543312,
+      "sample_rate": 44100,
+      "silence_degraded": false,
+      "trial": 8,
+      "prompt_id": "A3",
+      "error": null
+    },
+    {
+      "arrival_ms": 142.88645799999955,
+      "silence_ms": 118.73015873015872,
+      "ttfa_ms": 261.6166167301583,
+      "audio_bytes": 585648,
+      "sample_rate": 44100,
+      "silence_degraded": false,
+      "trial": 9,
+      "prompt_id": "A4",
+      "error": null
+    },
+    {
+      "arrival_ms": 169.92933400000078,
+      "silence_ms": 41.904761904761905,
+      "ttfa_ms": 211.83409590476268,
+      "audio_bytes": 599760,
+      "sample_rate": 44100,
+      "silence_degraded": false,
+      "trial": 10,
+      "prompt_id": "A8",
+      "error": null
+    }
+  ],
+  "failures": []
+}

@@ -1,0 +1,144 @@
+{
+  "provider": "deepgram",
+  "model": "aura-2-thalia-en",
+  "voice": "thalia",
+  "sample_rate": 24000,
+  "seed": 42,
+  "methodology": "coval-perceived-ttfa",
+  "endpoint": "wss://api.deepgram.com/v1/speak",
+  "note": "Model is Aura-2 (/v1/speak). Linked Flux /v2/speak docs do not serve aura-* models.",
+  "trials_ok": 10,
+  "trials_failed": 0,
+  "ttfa_ms": {
+    "median": 595.3849585000002,
+    "mean": 589.4022916,
+    "min": 320.9102500000043,
+    "max": 813.9490829999995
+  },
+  "arrival_ms": {
+    "median": 324.27612500000123,
+    "mean": 322.3022916000001,
+    "min": 281.54370799999384,
+    "max": 338.4377080000007
+  },
+  "silence_ms": {
+    "median": 272.0,
+    "mean": 267.1,
+    "min": 0.0,
+    "max": 482.0
+  },
+  "trials": [
+    {
+      "trial": 1,
+      "prompt_id": "A2",
+      "arrival_ms": 323.33262499999995,
+      "silence_ms": 399.0,
+      "ttfa_ms": 722.332625,
+      "audio_bytes": 351360,
+      "sample_rate": 24000,
+      "silence_degraded": false,
+      "error": null
+    },
+    {
+      "trial": 2,
+      "prompt_id": "A1",
+      "arrival_ms": 331.9490829999996,
+      "silence_ms": 482.0,
+      "ttfa_ms": 813.9490829999995,
+      "audio_bytes": 906240,
+      "sample_rate": 24000,
+      "silence_degraded": false,
+      "error": null
+    },
+    {
+      "trial": 3,
+      "prompt_id": "A5",
+      "arrival_ms": 338.4377080000007,
+      "silence_ms": 311.0,
+      "ttfa_ms": 649.4377080000007,
+      "audio_bytes": 432000,
+      "sample_rate": 24000,
+      "silence_degraded": false,
+      "error": null
+    },
+    {
+      "trial": 4,
+      "prompt_id": "A10",
+      "arrival_ms": 319.58924999999994,
+      "silence_ms": 116.0,
+      "ttfa_ms": 435.58924999999994,
+      "audio_bytes": 347520,
+      "sample_rate": 24000,
+      "silence_degraded": false,
+      "error": null
+    },
+    {
+      "trial": 5,
+      "prompt_id": "A7",
+      "arrival_ms": 320.9102500000043,
+      "silence_ms": 0.0,
+      "ttfa_ms": 320.9102500000043,
+      "audio_bytes": 291840,
+      "sample_rate": 24000,
+      "silence_degraded": false,
+      "error": null
+    },
+    {
+      "trial": 6,
+      "prompt_id": "A6",
+      "arrival_ms": 334.72183300000324,
+      "silence_ms": 138.0,
+      "ttfa_ms": 472.72183300000324,
+      "audio_bytes": 184320,
+      "sample_rate": 24000,
+      "silence_degraded": false,
+      "error": null
+    },
+    {
+      "trial": 7,
+      "prompt_id": "A9",
+      "arrival_ms": 321.55029199999774,
+      "silence_ms": 270.0,
+      "ttfa_ms": 591.5502919999977,
+      "audio_bytes": 368640,
+      "sample_rate": 24000,
+      "silence_degraded": false,
+      "error": null
+    },
+    {
+      "trial": 8,
+      "prompt_id": "A3",
+      "arrival_ms": 281.54370799999384,
+      "silence_ms": 232.0,
+      "ttfa_ms": 513.5437079999938,
+      "audio_bytes": 303360,
+      "sample_rate": 24000,
+      "silence_degraded": false,
+      "error": null
+    },
+    {
+      "trial": 9,
+      "prompt_id": "A4",
+      "arrival_ms": 325.21962500000257,
+      "silence_ms": 274.0,
+      "ttfa_ms": 599.2196250000026,
+      "audio_bytes": 314880,
+      "sample_rate": 24000,
+      "silence_degraded": false,
+      "error": null
+    },
+    {
+      "trial": 10,
+      "prompt_id": "A8",
+      "arrival_ms": 325.7685419999987,
+      "silence_ms": 449.0,
+      "ttfa_ms": 774.7685419999987,
+      "audio_bytes": 395520,
+      "sample_rate": 24000,
+      "silence_degraded": false,
+      "error": null
+    }
+  ],
+  "failures": [],
+  "leadin_target_peak": 0.5
+}

@@ -1,0 +1,11 @@
+prompt_id,leading_silence_ms,full_bytes,ttfa_ms,arrival_ms,text
+A2,399.0,351360,722.332625,323.33262499999995,"There's a slight delay with your $347.89 order, but we expect it to ship by Friday afternoon."
+A1,482.0,906240,813.9490829999995,331.9490829999996,"Your order #ORD-24589 shipped via UPS tracking 1Z999AA1234567890 and will arrive between 2:30 PM and 4:45 PM tomorrow."
+A5,311.0,432000,649.4377080000007,338.4377080000007,"I can reschedule you to either 11:15 AM on Wednesday or, let me check, 2:45 PM on Thursday."
+A10,116.0,347520,435.58924999999994,319.58924999999994,"For security, please confirm the last 4 digits of the card ending in 8429 used for your recent purchase."
+A7,0.0,291840,320.9102500000043,320.9102500000043,"Let's fix your Wi-Fi: unplug your router for exactly 30 seconds, then wait for the green light."
+A6,138.0,184320,472.72183300000324,334.72183300000324,"Please arrive 10 minutes early and bring your insurance card and a photo ID."
+A9,270.0,368640,591.5502919999977,321.55029199999774,"I'm seeing error code E-1047 here, which usually means, actually, let me guide you through the solution."
+A3,232.0,303360,513.5437079999938,281.54370799999384,"Order status update: your items are now in ""Quality Check"" and should ship within 24-48 hours."
+A4,274.0,314880,599.2196250000026,325.21962500000257,"Hi Ms. Garcia, your appointment with Dr. Peterson is scheduled for Tuesday, March 5th at 10:30 AM."
+A8,449.0,395520,774.7685419999987,325.7685419999987,"Your device is downloading update version 12.4.1, about 250 MB remaining, roughly 8 minutes left."

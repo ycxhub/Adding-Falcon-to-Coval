@@ -1,0 +1,145 @@
+{
+  "provider": "inworld",
+  "model": "inworld-tts-2",
+  "voice": "Ashley",
+  "sample_rate": 24000,
+  "seed": 42,
+  "methodology": "coval-perceived-ttfa",
+  "endpoint": "https://api.inworld.ai/tts/v1/voice:stream",
+  "encoding": "PCM",
+  "deliveryMode": "BALANCED",
+  "trials_ok": 10,
+  "trials_failed": 0,
+  "ttfa_ms": {
+    "median": 463.5485205000004,
+    "mean": 464.2858083000001,
+    "min": 448.38758300000023,
+    "max": 481.25400000000064
+  },
+  "arrival_ms": {
+    "median": 402.23570850000056,
+    "mean": 405.78580830000004,
+    "min": 398.0290830000008,
+    "max": 418.067958
+  },
+  "silence_ms": {
+    "median": 56.5,
+    "mean": 58.5,
+    "min": 41.0,
+    "max": 80.0
+  },
+  "trials": [
+    {
+      "trial": 1,
+      "prompt_id": "A2",
+      "arrival_ms": 417.2893750000002,
+      "silence_ms": 53.0,
+      "ttfa_ms": 470.2893750000002,
+      "audio_bytes": 367680,
+      "sample_rate": 24000,
+      "silence_degraded": false,
+      "error": null
+    },
+    {
+      "trial": 2,
+      "prompt_id": "A1",
+      "arrival_ms": 400.6788750000001,
+      "silence_ms": 73.0,
+      "ttfa_ms": 473.6788750000001,
+      "audio_bytes": 737280,
+      "sample_rate": 24000,
+      "silence_degraded": false,
+      "error": null
+    },
+    {
+      "trial": 3,
+      "prompt_id": "A5",
+      "arrival_ms": 418.067958,
+      "silence_ms": 52.0,
+      "ttfa_ms": 470.067958,
+      "audio_bytes": 386880,
+      "sample_rate": 24000,
+      "silence_degraded": false,
+      "error": null
+    },
+    {
+      "trial": 4,
+      "prompt_id": "A10",
+      "arrival_ms": 401.25400000000064,
+      "silence_ms": 80.0,
+      "ttfa_ms": 481.25400000000064,
+      "audio_bytes": 369600,
+      "sample_rate": 24000,
+      "silence_degraded": false,
+      "error": null
+    },
+    {
+      "trial": 5,
+      "prompt_id": "A7",
+      "arrival_ms": 407.38758300000023,
+      "silence_ms": 41.0,
+      "ttfa_ms": 448.38758300000023,
+      "audio_bytes": 294720,
+      "sample_rate": 24000,
+      "silence_degraded": false,
+      "error": null
+    },
+    {
+      "trial": 6,
+      "prompt_id": "A6",
+      "arrival_ms": 399.4422089999983,
+      "silence_ms": 57.0,
+      "ttfa_ms": 456.4422089999983,
+      "audio_bytes": 218880,
+      "sample_rate": 24000,
+      "silence_degraded": false,
+      "error": null
+    },
+    {
+      "trial": 7,
+      "prompt_id": "A9",
+      "arrival_ms": 398.0290830000008,
+      "silence_ms": 59.0,
+      "ttfa_ms": 457.0290830000008,
+      "audio_bytes": 379200,
+      "sample_rate": 24000,
+      "silence_degraded": false,
+      "error": null
+    },
+    {
+      "trial": 8,
+      "prompt_id": "A3",
+      "arrival_ms": 411.79458299999897,
+      "silence_ms": 43.0,
+      "ttfa_ms": 454.79458299999897,
+      "audio_bytes": 321600,
+      "sample_rate": 24000,
+      "silence_degraded": false,
+      "error": null
+    },
+    {
+      "trial": 9,
+      "prompt_id": "A4",
+      "arrival_ms": 403.21741700000047,
+      "silence_ms": 71.0,
+      "ttfa_ms": 474.21741700000047,
+      "audio_bytes": 341760,
+      "sample_rate": 24000,
+      "silence_degraded": false,
+      "error": null
+    },
+    {
+      "trial": 10,
+      "prompt_id": "A8",
+      "arrival_ms": 400.69700000000097,
+      "silence_ms": 56.0,
+      "ttfa_ms": 456.69700000000097,
+      "audio_bytes": 403200,
+      "sample_rate": 24000,
+      "silence_degraded": false,
+      "error": null
+    }
+  ],
+  "failures": [],
+  "leadin_target_peak": 0.5
+}

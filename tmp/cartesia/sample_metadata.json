@@ -1,0 +1,110 @@
+{
+  "provider": "cartesia",
+  "model": "sonic-3.5",
+  "voice": "db6b0ed5-d5d3-463d-ae85-518a07d3c2b4",
+  "sample_rate": 44100,
+  "seed": 42,
+  "leadin_target_peak": 0.5,
+  "trials": [
+    {
+      "prompt_id": "A2",
+      "leading_silence_ms": 139.6825396825397,
+      "full_bytes": 592704,
+      "leadin_bytes": 12320,
+      "full_path": "data/cartesia/full/A2.wav",
+      "leadin_path": "data/cartesia/leadin_amplified/A2_leadin_amplified.wav",
+      "text": "There's a slight delay with your $347.89 order, but we expect it to ship by Friday afternoon.",
+      "synth_wall_ms": 1166.912375
+    },
+    {
+      "prompt_id": "A1",
+      "leading_silence_ms": 119.72789115646258,
+      "full_bytes": 1418256,
+      "leadin_bytes": 10560,
+      "full_path": "data/cartesia/full/A1.wav",
+      "leadin_path": "data/cartesia/leadin_amplified/A1_leadin_amplified.wav",
+      "text": "Your order #ORD-24589 shipped via UPS tracking 1Z999AA1234567890 and will arrive between 2:30 PM and 4:45 PM tomorrow.",
+      "synth_wall_ms": 2239.7782089999996
+    },
+    {
+      "prompt_id": "A5",
+      "leading_silence_ms": 85.80498866213152,
+      "full_bytes": 585648,
+      "leadin_bytes": 7568,
+      "full_path": "data/cartesia/full/A5.wav",
+      "leadin_path": "data/cartesia/leadin_amplified/A5_leadin_amplified.wav",
+      "text": "I can reschedule you to either 11:15 AM on Wednesday or, let me check, 2:45 PM on Thursday.",
+      "synth_wall_ms": 1008.3996669999999
+    },
+    {
+      "prompt_id": "A10",
+      "leading_silence_ms": 177.59637188208615,
+      "full_bytes": 670320,
+      "leadin_bytes": 15664,
+      "full_path": "data/cartesia/full/A10.wav",
+      "leadin_path": "data/cartesia/leadin_amplified/A10_leadin_amplified.wav",
+      "text": "For security, please confirm the last 4 digits of the card ending in 8429 used for your recent purchase.",
+      "synth_wall_ms": 1123.1775840000005
+    },
+    {
+      "prompt_id": "A7",
+      "leading_silence_ms": 88.79818594104307,
+      "full_bytes": 479808,
+      "leadin_bytes": 7832,
+      "full_path": "data/cartesia/full/A7.wav",
+      "leadin_path": "data/cartesia/leadin_amplified/A7_leadin_amplified.wav",
+      "text": "Let's fix your Wi-Fi: unplug your router for exactly 30 seconds, then wait for the green light.",
+      "synth_wall_ms": 898.9077080000003
+    },
+    {
+      "prompt_id": "A6",
+      "leading_silence_ms": 118.73015873015872,
+      "full_bytes": 381024,
+      "leadin_bytes": 10472,
+      "full_path": "data/cartesia/full/A6.wav",
+      "leadin_path": "data/cartesia/leadin_amplified/A6_leadin_amplified.wav",
+      "text": "Please arrive 10 minutes early and bring your insurance card and a photo ID.",
+      "synth_wall_ms": 832.1922500000003
+    },
+    {
+      "prompt_id": "A9",
+      "leading_silence_ms": 127.70975056689343,
+      "full_bytes": 606816,
+      "leadin_bytes": 11264,
+      "full_path": "data/cartesia/full/A9.wav",
+      "leadin_path": "data/cartesia/leadin_amplified/A9_leadin_amplified.wav",
+      "text": "I'm seeing error code E-1047 here, which usually means, actually, let me guide you through the solution.",
+      "synth_wall_ms": 1219.2887080000005
+    },
+    {
+      "prompt_id": "A3",
+      "leading_silence_ms": 123.718820861678,
+      "full_bytes": 522144,
+      "leadin_bytes": 10912,
+      "full_path": "data/cartesia/full/A3.wav",
+      "leadin_path": "data/cartesia/leadin_amplified/A3_leadin_amplified.wav",
+      "text": "Order status update: your items are now in \"Quality Check\" and should ship within 24-48 hours.",
+      "synth_wall_ms": 966.8029580000006
+    },
+    {
+      "prompt_id": "A4",
+      "leading_silence_ms": 132.6984126984127,
+      "full_bytes": 585648,
+      "leadin_bytes": 11704,
+      "full_path": "data/cartesia/full/A4.wav",
+      "leadin_path": "data/cartesia/leadin_amplified/A4_leadin_amplified.wav",
+      "text": "Hi Ms. Garcia, your appointment with Dr. Peterson is scheduled for Tuesday, March 5th at 10:30 AM.",
+      "synth_wall_ms": 1048.641958000001
+    },
+    {
+      "prompt_id": "A8",
+      "leading_silence_ms": 167.61904761904762,
+      "full_bytes": 642096,
+      "leadin_bytes": 14784,
+      "full_path": "data/cartesia/full/A8.wav",
+      "leadin_path": "data/cartesia/leadin_amplified/A8_leadin_amplified.wav",
+      "text": "Your device is downloading update version 12.4.1, about 250 MB remaining, roughly 8 minutes left.",
+      "synth_wall_ms": 1126.748333
+    }
+  ]
+}
