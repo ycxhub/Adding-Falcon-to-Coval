@@ -1,0 +1,293 @@
+# Copyright 2026 The Coval Benchmarks Authors
+# SPDX-License-Identifier: Apache-2.0
+
+"""Shared fixtures for TTS provider tests.
+
+No live network calls are made in any test in this package.  HTTP-streaming
+providers are covered by VCR cassettes; WebSocket providers are covered by
+monkeypatched fake SDKs.
+"""
+
+from __future__ import annotations
+
+import wave as _wave
+from collections.abc import AsyncIterator, Sequence
+from io import BytesIO
+from pathlib import Path
+from typing import Any
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+from pydantic import SecretStr
+
+from coval_bench.config import Settings
+
+# ---------------------------------------------------------------------------
+# VCR config — must be module-scope so pytest-vcr picks it up
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="module")
+def vcr_config() -> dict[str, Any]:
+    """Filter secrets from VCR cassettes before they are written to disk."""
+    return {
+        "filter_headers": ["authorization", "xi-api-key", "api-key", "x-api-key"],
+        "filter_query_parameters": ["api_key", "key"],
+        "decode_compressed_response": True,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Settings fixture with fake API keys
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture()
+def fake_settings(tmp_path: Path) -> Settings:
+    """Settings instance with placeholder API keys suitable for offline tests."""
+    return Settings(
+        database_url="postgresql://runner:password@localhost:5432/benchmarks",
+        dataset_bucket="test-bucket",
+        dataset_id="stt-v1",
+        runner_sha="test",
+        log_level="DEBUG",
+        openai_api_key=SecretStr("sk-test-openai"),
+        cartesia_api_key=SecretStr("test-cartesia-key"),
+        elevenlabs_api_key=SecretStr("test-elevenlabs-key"),
+        deepgram_api_key=SecretStr("test-deepgram-key"),
+        hume_api_key=SecretStr("test-hume-key"),
+        rime_api_key=SecretStr("test-rime-key"),
+        gradium_tts_api_key=SecretStr("test-gradium-tts-key"),
+        xai_api_key=SecretStr("test-xai-key"),
+        groq_api_key=SecretStr("test-groq-key"),
+        smallest_api_key=SecretStr("test-smallest-key"),
+        murf_api_key=SecretStr("test-murf-key"),
+        inworld_api_key=SecretStr("test-inworld-key"),
+        soniox_api_key=SecretStr("test-soniox-key"),
+        azure_api_key=SecretStr("test-azure-key"),
+        azure_region="eastus",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Sample text fixture
+# ---------------------------------------------------------------------------
+
+SAMPLE_TEXT = "Hello, this is a test of the text-to-speech system."
+
+
+@pytest.fixture()
+def sample_text() -> str:
+    """Short TTS test sentence."""
+    return SAMPLE_TEXT
+
+
+# ---------------------------------------------------------------------------
+# FakeWebSocket — reusable across the WebSocket-based TTS provider tests
+# ---------------------------------------------------------------------------
+
+
+class FakeWebSocket:
+    """Minimal async context-manager fake for websockets.connect()."""
+
+    def __init__(self, messages: Sequence[str | bytes]) -> None:
+        self._messages = list(messages)
+        self._idx = 0
+        self.sent: list[str | bytes] = []
+
+    async def send(self, data: str | bytes) -> None:
+        self.sent.append(data)
+
+    async def recv(self) -> str | bytes:
+        if self._idx < len(self._messages):
+            msg = self._messages[self._idx]
+            self._idx += 1
+            return msg
+        raise StopAsyncIteration
+
+    def __aiter__(self) -> AsyncIterator[str | bytes]:
+        return _AsyncFakeWebSocketIter(self)
+
+    async def __aenter__(self) -> FakeWebSocket:
+        return self
+
+    async def __aexit__(self, *_: object) -> None:
+        pass
+
+
+class _AsyncFakeWebSocketIter:
+    """Async iterator over remaining FakeWebSocket messages (shares recv() index)."""
+
+    def __init__(self, ws: FakeWebSocket) -> None:
+        self._ws = ws
+
+    def __aiter__(self) -> _AsyncFakeWebSocketIter:
+        return self
+
+    async def __anext__(self) -> str | bytes:
+        if self._ws._idx >= len(self._ws._messages):
+            raise StopAsyncIteration
+        msg = self._ws._messages[self._ws._idx]
+        self._ws._idx += 1
+        return msg
+
+
+# ---------------------------------------------------------------------------
+# Fake Cartesia SDK client helpers
+# ---------------------------------------------------------------------------
+
+
+class FakeCartesiaEvent:
+    """Mimics a cartesia WebSocket chunk event."""
+
+    def __init__(self, audio: bytes | None = None, event_type: str = "chunk") -> None:
+        self.type = event_type
+        self.audio = audio
+
+
+class FakeCartesiaContext:
+    """Fake AsyncWebSocketContext that yields audio chunks then done."""
+
+    def __init__(self, chunks: list[bytes]) -> None:
+        self._chunks = chunks
+        self.send_kwargs: dict[str, Any] | None = None
+
+    async def send(self, **kwargs: Any) -> None:
+        self.send_kwargs = kwargs
+
+    async def no_more_inputs(self) -> None:
+        pass
+
+    def receive(self) -> FakeCartesiaContext:
+        return self
+
+    def __aiter__(self) -> FakeCartesiaContext:
+        self._iter = iter(self._chunks)
+        return self
+
+    async def __anext__(self) -> FakeCartesiaEvent:
+        try:
+            chunk = next(self._iter)
+            return FakeCartesiaEvent(audio=chunk, event_type="chunk")
+        except StopIteration:
+            raise StopAsyncIteration from None
+
+
+class FakeCartesiaConnection:
+    """Fake AsyncTTSResourceConnection."""
+
+    def __init__(self, chunks: list[bytes]) -> None:
+        self._chunks = chunks
+        self.last_context: FakeCartesiaContext | None = None
+        self.last_context_kwargs: dict[str, Any] | None = None
+
+    def context(self, **kwargs: Any) -> FakeCartesiaContext:
+        ctx = FakeCartesiaContext(self._chunks)
+        self.last_context = ctx
+        self.last_context_kwargs = kwargs
+        return ctx
+
+    async def __aenter__(self) -> FakeCartesiaConnection:
+        return self
+
+    async def __aexit__(self, *_: object) -> None:
+        pass
+
+
+def make_fake_cartesia_client(chunks: list[bytes]) -> MagicMock:
+    """Return a MagicMock AsyncCartesia whose websocket_connect yields *chunks*."""
+    fake_conn = FakeCartesiaConnection(chunks)
+    fake_ws_manager = MagicMock()
+    fake_ws_manager.__aenter__ = AsyncMock(return_value=fake_conn)
+    fake_ws_manager.__aexit__ = AsyncMock(return_value=False)
+
+    fake_tts = MagicMock()
+    fake_tts.websocket_connect = MagicMock(return_value=fake_ws_manager)
+
+    fake_client = MagicMock()
+    fake_client.tts = fake_tts
+    # Expose the underlying FakeCartesiaConnection so tests can introspect
+    # what was passed to ctx.send / conn.context (e.g., language hint).
+    fake_client._fake_conn = fake_conn
+    return fake_client
+
+
+# ---------------------------------------------------------------------------
+# Fake ElevenLabs SDK helpers
+# ---------------------------------------------------------------------------
+
+
+def make_fake_elevenlabs_response(chunks: list[bytes]) -> list[bytes]:
+    """Return a list of byte chunks to be yielded by the SDK iterator."""
+    return list(chunks)
+
+
+# ---------------------------------------------------------------------------
+# Fake aiohttp response helpers
+# ---------------------------------------------------------------------------
+
+
+class FakeAiohttpContent:
+    """Fake aiohttp response content that yields *chunks* from iter_any()."""
+
+    def __init__(self, chunks: list[bytes]) -> None:
+        self._chunks = chunks
+
+    async def iter_any(self) -> Any:  # noqa: ANN401
+        for chunk in self._chunks:
+            yield chunk
+
+
+class FakeAiohttpResponse:
+    """Fake aiohttp.ClientResponse."""
+
+    def __init__(self, chunks: list[bytes], status: int = 200, text_body: str = "") -> None:
+        self.status = status
+        self.content = FakeAiohttpContent(chunks)
+        self._text_body = text_body
+
+    async def text(self) -> str:
+        return self._text_body
+
+    async def __aenter__(self) -> FakeAiohttpResponse:
+        return self
+
+    async def __aexit__(self, *_: object) -> None:
+        pass
+
+
+class FakeAiohttpSession:
+    """Fake aiohttp.ClientSession that returns *response* for any post()."""
+
+    def __init__(self, response: FakeAiohttpResponse) -> None:
+        self._response = response
+
+    def post(self, *_args: Any, **_kwargs: Any) -> FakeAiohttpResponse:
+        return self._response
+
+    async def __aenter__(self) -> FakeAiohttpSession:
+        return self
+
+    async def __aexit__(self, *_: object) -> None:
+        pass
+
+
+# ---------------------------------------------------------------------------
+# Helpers — build minimal valid WAV bytes for fixture audio
+# ---------------------------------------------------------------------------
+
+
+def make_pcm_bytes(duration_frames: int = 480, sample_rate: int = 24000) -> bytes:
+    """Generate a block of silence PCM frames (16-bit, mono)."""
+    return b"\x00" * (duration_frames * 2)  # 2 bytes per sample, 16-bit
+
+
+def make_wav_bytes(duration_frames: int = 480, sample_rate: int = 24000) -> bytes:
+    """Wrap PCM silence in a proper WAV container."""
+    buf = BytesIO()
+    with _wave.open(buf, "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(sample_rate)
+        wf.writeframes(make_pcm_bytes(duration_frames, sample_rate))
+    return buf.getvalue()

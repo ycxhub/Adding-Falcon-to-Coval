@@ -1,0 +1,499 @@
+diff --git a/.env.example b/.env.example
+index 66b2660..a859eeb 100644
+--- a/.env.example
++++ b/.env.example
+@@ -39,6 +39,7 @@ TOGETHER_API_KEY=
+ MINIMAX_API_KEY=
+ MODULATE_API_KEY=
+ LMNT_API_KEY=
++MURF_API_KEY=
+ 
+ # --- API (optional) ---
+ # Benchmarking-team key: requests with X-Internal-Key equal to this value see
+diff --git a/runner/src/coval_bench/config.py b/runner/src/coval_bench/config.py
+index ae17969..21b84bb 100644
+--- a/runner/src/coval_bench/config.py
++++ b/runner/src/coval_bench/config.py
+@@ -100,6 +100,7 @@ class Settings(BaseSettings):
+     minimax_api_key: SecretStr | None = None
+     palabra_api_key: SecretStr | None = None
+     lmnt_api_key: SecretStr | None = None
++    murf_api_key: SecretStr | None = None
+     modulate_api_key: SecretStr | None = None
+     speechify_api_key: SecretStr | None = None
+ 
+diff --git a/runner/src/coval_bench/providers/tts/__init__.py b/runner/src/coval_bench/providers/tts/__init__.py
+index 68ad1b7..9cb2564 100644
+--- a/runner/src/coval_bench/providers/tts/__init__.py
++++ b/runner/src/coval_bench/providers/tts/__init__.py
+@@ -28,6 +28,7 @@ from coval_bench.providers.tts.groq import GroqTTSProvider
+ from coval_bench.providers.tts.inworld import InworldTTSProvider
+ from coval_bench.providers.tts.lmnt import LmntTTSProvider
+ from coval_bench.providers.tts.minimax import MinimaxTTSProvider
++from coval_bench.providers.tts.murf import MurfTTSProvider
+ from coval_bench.providers.tts.openai import OpenAITTSProvider
+ from coval_bench.providers.tts.palabra import PalabraTTSProvider
+ from coval_bench.providers.tts.rime import RimeTTSProvider
+@@ -71,6 +72,7 @@ TTS_PROVIDERS: dict[str, type[TTSProvider]] = {
+     "speechify": SpeechifyTTSProvider,
+     "fluxions": FluxionsTTSProvider,
+     "lmnt": LmntTTSProvider,
++    "murf": MurfTTSProvider,
+ }
+ 
+ if HumeTTSProvider is not None:
+@@ -91,6 +93,7 @@ __all__ = [
+     "GradiumTTSProvider",
+     "LmntTTSProvider",
+     "MinimaxTTSProvider",
++    "MurfTTSProvider",
+     "SmallestTTSProvider",
+     "XaiTTSProvider",
+     "GroqTTSProvider",
+diff --git a/runner/src/coval_bench/providers/tts/murf.py b/runner/src/coval_bench/providers/tts/murf.py
+new file mode 100644
+index 0000000..95877ab
+--- /dev/null
++++ b/runner/src/coval_bench/providers/tts/murf.py
+@@ -0,0 +1,150 @@
++# Copyright 2026 The Coval Benchmarks Authors
++# SPDX-License-Identifier: Apache-2.0
++
++"""Murf TTS provider — WebSocket streaming.
++
++Wire protocol:
++  connect (api-key, model, sample_rate, channel_type, format on the query string)
++  → send JSON voice config: {"voice_config": {"voiceId": ..., "locale": ...}}
++  → send JSON text:         {"text": ..., "end": true}
++  → recv JSON chunks:       {"audio": "<base64-pcm>", "context_id", "trace_id"}
++  → recv JSON done:         {"context_id", "final": true}  — carries no audio
++
++The server keeps the connection open after ``final``, so the receive loop has
++to break on the flag; waiting for the peer to close hangs until timeout.
++
++Auth:   ``api-key`` query parameter on the handshake
++Output: 16-bit mono PCM (base64-decoded from JSON envelopes), 24 kHz
++"""
++
++from __future__ import annotations
++
++import base64
++import json
++import time
++from urllib.parse import urlencode
++
++import structlog
++import websockets.asyncio.client as ws_client
++
++from coval_bench.config import Settings
++from coval_bench.providers.base import TTSProvider, TTSResult
++from coval_bench.providers.tts._common import finalize_tts_result
++
++logger: structlog.BoundLogger = structlog.get_logger(__name__)
++
++SAMPLE_RATE = 24000
++# Global router: the handshake is routed to Murf's nearest region.
++_WS_URL = "wss://global.api.murf.ai/v1/speech/stream-input"
++_LOCALE = "en-US"
++_RIFF_MAGIC = b"RIFF"
++_WAV_HEADER_BYTES = 44
++
++
++class MurfTTSProvider(TTSProvider):
++    """Murf TTS provider using the Falcon 2 streaming WebSocket API."""
++
++    _VALID_MODELS = frozenset({"falcon-2"})
++
++    def __init__(self, settings: Settings, model: str, voice: str) -> None:
++        if model not in self._VALID_MODELS:
++            raise ValueError(
++                f"Unsupported Murf model {model!r}. Valid: {sorted(self._VALID_MODELS)}"
++            )
++        self._model = model
++        self._voice = voice
++
++        api_key_secret = settings.murf_api_key
++        if api_key_secret is None:
++            raise ValueError("murf_api_key is required in Settings")
++        self._api_key = api_key_secret.get_secret_value()
++
++    @property
++    def name(self) -> str:
++        return f"murf-{self._model}"
++
++    @property
++    def model(self) -> str:
++        return self._model
++
++    def _handshake_url(self) -> str:
++        """Handshake URL carrying auth and the audio contract as query parameters."""
++        query = urlencode(
++            {
++                "api-key": self._api_key,
++                "model": self._model,
++                "sample_rate": SAMPLE_RATE,
++                "channel_type": "MONO",
++                "format": "PCM",
++            }
++        )
++        return f"{_WS_URL}?{query}"
++
++    async def synthesize(self, text: str) -> TTSResult:
++        """Synthesize speech via the Murf WebSocket and return a TTSResult."""
++        audio_chunks: list[bytes] = []
++        start: float | None = None
++        first_chunk_at: float | None = None
++
++        # Explicit locale keeps the voice off the server's auto-detect path.
++        voice_config = json.dumps({"voice_config": {"voiceId": self._voice, "locale": _LOCALE}})
++        # `end` closes the context, so the server flushes without waiting for
++        # more input and the connection is free for the next synthesis.
++        text_message = json.dumps({"text": text, "end": True})
++
++        try:
++            async with ws_client.connect(self._handshake_url()) as ws:
++                # Voice setup is sent before t0 so session config stays out of TTFA.
++                await ws.send(voice_config)
++
++                start = time.monotonic()
++                await ws.send(text_message)
++
++                async for raw in ws:
++                    msg = json.loads(raw)
++                    audio_b64: str = msg.get("audio", "")
++                    if audio_b64:
++                        pcm = base64.b64decode(audio_b64)
++                        if not audio_chunks:
++                            pcm = _strip_wav_header(pcm)
++                        if pcm:
++                            if first_chunk_at is None:
++                                first_chunk_at = time.monotonic()
++                            audio_chunks.append(pcm)
++                    if msg.get("final"):
++                        break
++
++        except Exception as exc:
++            logger.warning("murf_error", provider="murf", model=self._model, exc_info=exc)
++            return finalize_tts_result(
++                provider="murf",
++                model=self._model,
++                voice=self._voice,
++                pcm=b"",
++                sample_rate=SAMPLE_RATE,
++                audio_synthesis_start=start,
++                first_audio_chunk_at=first_chunk_at,
++                error=str(exc),
++            )
++
++        return finalize_tts_result(
++            provider="murf",
++            model=self._model,
++            voice=self._voice,
++            pcm=b"".join(audio_chunks),
++            sample_rate=SAMPLE_RATE,
++            audio_synthesis_start=start,
++            first_audio_chunk_at=first_chunk_at,
++        )
++
++
++def _strip_wav_header(chunk: bytes) -> bytes:
++    """Drop a leading RIFF header so the assembled stream is raw PCM.
++
++    ``format=PCM`` yields headerless audio, but ``format=WAV`` prefixes the
++    first chunk with a 44-byte header. Tolerating both keeps a server-side
++    default change from prepending header bytes to the measured audio.
++    """
++    if chunk.startswith(_RIFF_MAGIC) and len(chunk) > _WAV_HEADER_BYTES:
++        return chunk[_WAV_HEADER_BYTES:]
++    return chunk
+diff --git a/runner/src/coval_bench/registries/models.py b/runner/src/coval_bench/registries/models.py
+index 61dad24..89866f5 100644
+--- a/runner/src/coval_bench/registries/models.py
++++ b/runner/src/coval_bench/registries/models.py
+@@ -776,6 +776,19 @@ MODEL_REGISTRY: list[RegisteredModel] = [
+         tags=(_STREAMING, _MULTI, _CLONE, _STREAM),
+         status=_ACTIVE,
+     ),
++    # Benchmarked through the global router, which resolves to the nearest Murf
++    # region. Concurrency there defaults to 2, below the runner's cap of 8, so
++    # the key needs a raised limit (or a US-East pin) before this goes ACTIVE.
++    RegisteredModel(
++        benchmark=_TTS,
++        provider="murf",
++        model="falcon-2",
++        voice="Natalie",
++        voices=("Natalie", "Miles"),
++        tags=(_STREAMING, _MULTI, _CLONE, _STREAM),
++        on_prem=True,
++        status=_EARLY_ACCESS,
++    ),
+     # gpt-realtime is a speech-to-speech LLM, not a TTS provider: driving it
+     # from a text "instructions" prompt folds LLM inference into TTFA and never
+     # guarantees verbatim speech, so its metrics are incomparable here. Kept
+diff --git a/runner/src/coval_bench/registries/provider_keys.py b/runner/src/coval_bench/registries/provider_keys.py
+index 0049640..02ea24c 100644
+--- a/runner/src/coval_bench/registries/provider_keys.py
++++ b/runner/src/coval_bench/registries/provider_keys.py
+@@ -39,4 +39,5 @@ PROVIDER_ENV: dict[str, str] = {
+     "palabra": "PALABRA_API_KEY",
+     "speechify": "SPEECHIFY_API_KEY",
+     "lmnt": "LMNT_API_KEY",
++    "murf": "MURF_API_KEY",
+ }
+diff --git a/runner/tests/providers/tts/conftest.py b/runner/tests/providers/tts/conftest.py
+index 31a7d0e..69c4991 100644
+--- a/runner/tests/providers/tts/conftest.py
++++ b/runner/tests/providers/tts/conftest.py
+@@ -61,6 +61,7 @@ def fake_settings(tmp_path: Path) -> Settings:
+         xai_api_key=SecretStr("test-xai-key"),
+         groq_api_key=SecretStr("test-groq-key"),
+         smallest_api_key=SecretStr("test-smallest-key"),
++        murf_api_key=SecretStr("test-murf-key"),
+         inworld_api_key=SecretStr("test-inworld-key"),
+         soniox_api_key=SecretStr("test-soniox-key"),
+         azure_api_key=SecretStr("test-azure-key"),
+diff --git a/runner/tests/providers/tts/test_murf.py b/runner/tests/providers/tts/test_murf.py
+new file mode 100644
+index 0000000..744f484
+--- /dev/null
++++ b/runner/tests/providers/tts/test_murf.py
+@@ -0,0 +1,239 @@
++# Copyright 2026 The Coval Benchmarks Authors
++# SPDX-License-Identifier: Apache-2.0
++
++"""Tests for the Murf TTS provider."""
++
++from __future__ import annotations
++
++import base64
++import json
++from pathlib import Path
++from unittest.mock import patch
++from urllib.parse import parse_qs
++
++import pytest
++
++from coval_bench.config import Settings
++from coval_bench.providers.tts.murf import SAMPLE_RATE, MurfTTSProvider
++
++from .conftest import FakeWebSocket, make_pcm_bytes, make_wav_bytes
++
++# ---------------------------------------------------------------------------
++# Helpers
++# ---------------------------------------------------------------------------
++
++
++# Envelopes mirror live API output: audio frames carry context_id and trace_id
++# alongside the payload, and the terminator carries a `final` flag with no audio.
++_TRACE_ID = "580a7a17-ce71-48ea-a6a3-d7661218a307"
++
++
++def _chunk_msg(pcm: bytes) -> str:
++    """Build a JSON audio envelope with base64-encoded PCM."""
++    return json.dumps(
++        {
++            "audio": base64.b64encode(pcm).decode(),
++            "context_id": None,
++            "trace_id": _TRACE_ID,
++        }
++    )
++
++
++def _final_msg() -> str:
++    return json.dumps({"context_id": None, "final": True})
++
++
++def _make_ws(pcm_chunks: list[bytes]) -> FakeWebSocket:
++    """Return a FakeWebSocket that yields audio envelopes then a final message."""
++    return FakeWebSocket([_chunk_msg(c) for c in pcm_chunks] + [_final_msg()])
++
++
++# ---------------------------------------------------------------------------
++# Happy path
++# ---------------------------------------------------------------------------
++
++
++@pytest.mark.asyncio
++async def test_murf_happy_path(fake_settings: Settings, tmp_path: Path) -> None:
++    pcm = make_pcm_bytes(480)
++    fake_ws = _make_ws([pcm, pcm, pcm, pcm])
++
++    with patch("coval_bench.providers.tts.murf.ws_client.connect", return_value=fake_ws):
++        provider = MurfTTSProvider(fake_settings, model="falcon-2", voice="Natalie")
++        result = await provider.synthesize("Hello from Murf")
++
++    assert result.error is None, result.error
++    assert result.ttfa_ms is not None and 0 < result.ttfa_ms < 10_000
++    assert result.audio_path is not None and result.audio_path.exists()
++    assert result.audio_path.stat().st_size > 0
++    assert result.provider == "murf"
++    assert result.model == "falcon-2"
++
++    # Voice config precedes the text so session setup stays out of TTFA.
++    assert len(fake_ws.sent) == 2
++    voice_config = json.loads(fake_ws.sent[0])
++    assert voice_config["voice_config"]["voiceId"] == "Natalie"
++    assert voice_config["voice_config"]["locale"] == "en-US"
++
++    text_msg = json.loads(fake_ws.sent[1])
++    assert text_msg["text"] == "Hello from Murf"
++    assert text_msg["end"] is True
++
++    result.audio_path.unlink()
++
++
++@pytest.mark.asyncio
++async def test_murf_all_models(fake_settings: Settings) -> None:
++    for model in MurfTTSProvider._VALID_MODELS:
++        fake_ws = _make_ws([make_pcm_bytes(240)])
++        with patch("coval_bench.providers.tts.murf.ws_client.connect", return_value=fake_ws):
++            provider = MurfTTSProvider(fake_settings, model=model, voice="Natalie")
++            result = await provider.synthesize("test")
++        assert result.error is None, f"{model}: {result.error}"
++        if result.audio_path is not None:
++            result.audio_path.unlink()
++
++
++def test_murf_handshake_url_carries_audio_contract(fake_settings: Settings) -> None:
++    provider = MurfTTSProvider(fake_settings, model="falcon-2", voice="Natalie")
++    base, _, query = provider._handshake_url().partition("?")
++    params = parse_qs(query)
++
++    assert base == "wss://global.api.murf.ai/v1/speech/stream-input"
++    assert params["model"] == ["falcon-2"]
++    assert params["sample_rate"] == ["24000"]
++    assert params["channel_type"] == ["MONO"]
++    assert params["format"] == ["PCM"]
++    # 24 kHz mono PCM is what finalize_tts_result assumes when it writes the WAV.
++    assert params["sample_rate"] == [str(SAMPLE_RATE)]
++
++
++# ---------------------------------------------------------------------------
++# Edge cases
++# ---------------------------------------------------------------------------
++
++
++@pytest.mark.asyncio
++async def test_murf_strips_wav_header_from_first_chunk(fake_settings: Settings) -> None:
++    """A RIFF-prefixed first chunk is unwrapped so the WAV holds only PCM."""
++    frames = 480
++    fake_ws = FakeWebSocket([_chunk_msg(make_wav_bytes(frames)), _final_msg()])
++
++    with patch("coval_bench.providers.tts.murf.ws_client.connect", return_value=fake_ws):
++        provider = MurfTTSProvider(fake_settings, model="falcon-2", voice="Natalie")
++        result = await provider.synthesize("headered")
++
++    assert result.error is None
++    assert result.audio_path is not None
++    # 44-byte RIFF header + 44-byte header written by finalize == input WAV size.
++    assert result.audio_path.stat().st_size == 44 + frames * 2
++    result.audio_path.unlink()
++
++
++@pytest.mark.asyncio
++async def test_murf_empty_audio(fake_settings: Settings) -> None:
++    """Server sends final with no chunks — no audio_path, no ttfa."""
++    fake_ws = FakeWebSocket([_final_msg()])
++
++    with patch("coval_bench.providers.tts.murf.ws_client.connect", return_value=fake_ws):
++        provider = MurfTTSProvider(fake_settings, model="falcon-2", voice="Natalie")
++        result = await provider.synthesize("silence")
++
++    assert result.error is None
++    assert result.audio_path is None
++    assert result.ttfa_ms is None
++
++
++@pytest.mark.asyncio
++async def test_murf_priming_chunk_starts_the_clock(fake_settings: Settings) -> None:
++    """The stream opens with a single-sample priming chunk before the bulk audio.
++
++    That 2-byte frame is what the live API sends first, and it is non-empty, so
++    it is what TTFA is measured from; the leading-silence offset in
++    finalize_tts_result is what keeps the reported value honest.
++    """
++    fake_ws = _make_ws([make_pcm_bytes(1), make_pcm_bytes(4093), make_pcm_bytes(4096)])
++
++    with patch("coval_bench.providers.tts.murf.ws_client.connect", return_value=fake_ws):
++        provider = MurfTTSProvider(fake_settings, model="falcon-2", voice="Natalie")
++        result = await provider.synthesize("primed")
++
++    assert result.error is None
++    assert result.ttfa_ms is not None
++    assert result.audio_path is not None
++    # Every sample is retained, priming frame included: 8190 samples + 44-byte header.
++    assert result.audio_path.stat().st_size == 44 + 8190 * 2
++    result.audio_path.unlink()
++
++
++@pytest.mark.asyncio
++async def test_murf_final_envelope_may_carry_audio(fake_settings: Settings) -> None:
++    """Audio riding on the final envelope is kept, not dropped by the break.
++
++    The live API sends a bare terminator, so this is defensive: it pins the
++    ordering so a server-side change could not silently lose the last chunk.
++    """
++    payload = base64.b64encode(make_pcm_bytes(240)).decode()
++    fake_ws = FakeWebSocket([json.dumps({"audio": payload, "final": True})])
++
++    with patch("coval_bench.providers.tts.murf.ws_client.connect", return_value=fake_ws):
++        provider = MurfTTSProvider(fake_settings, model="falcon-2", voice="Natalie")
++        result = await provider.synthesize("test")
++
++    assert result.error is None
++    assert result.ttfa_ms is not None
++    assert result.audio_path is not None
++    result.audio_path.unlink()
++
++
++# ---------------------------------------------------------------------------
++# Error path
++# ---------------------------------------------------------------------------
++
++
++@pytest.mark.asyncio
++async def test_murf_connection_error(fake_settings: Settings) -> None:
++    with patch(
++        "coval_bench.providers.tts.murf.ws_client.connect",
++        side_effect=OSError("connection refused"),
++    ):
++        provider = MurfTTSProvider(fake_settings, model="falcon-2", voice="Natalie")
++        result = await provider.synthesize("hi")
++
++    assert result.error is not None
++    assert "connection refused" in result.error
++    assert result.audio_path is None
++    assert result.ttfa_ms is None
++
++
++# ---------------------------------------------------------------------------
++# Properties
++# ---------------------------------------------------------------------------
++
++
++def test_murf_name_and_model(fake_settings: Settings) -> None:
++    p = MurfTTSProvider(fake_settings, model="falcon-2", voice="Natalie")
++    assert p.name == "murf-falcon-2"
++    assert p.model == "falcon-2"
++
++
++def test_murf_rejects_unsupported_model(fake_settings: Settings) -> None:
++    with pytest.raises(ValueError, match="Unsupported Murf model"):
++        MurfTTSProvider(fake_settings, model="not-a-real-model", voice="Natalie")
++
++
++# ---------------------------------------------------------------------------
++# Missing API key
++# ---------------------------------------------------------------------------
++
++
++def test_murf_missing_api_key() -> None:
++    settings_no_key = Settings(
++        database_url="postgresql://runner:password@localhost:5432/benchmarks",
++        dataset_bucket="test-bucket",
++        dataset_id="stt-v1",
++        runner_sha="test",
++        murf_api_key=None,
++    )
++    with pytest.raises(ValueError, match="murf_api_key"):
++        MurfTTSProvider(settings_no_key, model="falcon-2", voice="Natalie")
