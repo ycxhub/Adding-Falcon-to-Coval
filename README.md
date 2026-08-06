@@ -18,6 +18,7 @@ This repository packages the contribution work intended for upstream `coval-ai/b
 | `.env.example` | Documents `MURF_API_KEY` |
 | `murf-falcon-2.patch` | Full diff against Coval `main` @ `03a52f3` |
 | `data/` | Leading-silence matrix CSVs, charts, and full + trimmed WAVs |
+| `tools/tts_wer.py` | TTS WER harness (Coval's metric: ASR round-trip + `jiwer`) |
 
 ## Apply upstream
 
