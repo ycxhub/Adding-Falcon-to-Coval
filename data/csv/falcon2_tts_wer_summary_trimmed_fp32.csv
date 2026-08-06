@@ -1,0 +1,11 @@
+voice,family,n_utterances,wer_mean_pct,wer_median_pct,wer_max_pct,total_ref_words,total_substitutions,total_insertions,total_deletions,asr_model,norm_version
+Amara,Falcon 2,1,0.0,0.0,0.0,10,0,0,0,faster-whisper:large-v2/float32,2
+Gordon,Falcon 2,1,0.0,0.0,0.0,10,0,0,0,faster-whisper:large-v2/float32,2
+Grant,Falcon 2,1,0.0,0.0,0.0,10,0,0,0,faster-whisper:large-v2/float32,2
+Judith,Falcon 2,1,0.0,0.0,0.0,10,0,0,0,faster-whisper:large-v2/float32,2
+Madison,Falcon 2,1,0.0,0.0,0.0,10,0,0,0,faster-whisper:large-v2/float32,2
+Miles,Falcon 2,1,0.0,0.0,0.0,10,0,0,0,faster-whisper:large-v2/float32,2
+Natalie,Falcon 2,1,0.0,0.0,0.0,10,0,0,0,faster-whisper:large-v2/float32,2
+Tyler,Falcon 2,1,0.0,0.0,0.0,10,0,0,0,faster-whisper:large-v2/float32,2
+Will,Falcon 2,1,0.0,0.0,0.0,10,0,0,0,faster-whisper:large-v2/float32,2
+Ken,Gen2,1,0.0,0.0,0.0,10,0,0,0,faster-whisper:large-v2/float32,2
