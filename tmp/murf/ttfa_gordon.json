@@ -1,0 +1,139 @@
+{
+  "provider": "murf",
+  "model": "falcon-2",
+  "voice": "Gordon",
+  "trials_ok": 10,
+  "trials_failed": 0,
+  "methodology": "coval-perceived-ttfa",
+  "ttfa_ms": {
+    "median": 576.7309584999999,
+    "mean": 571.9708834999999,
+    "min": 466.43362499999995,
+    "max": 636.1655419999997
+  },
+  "arrival_ms": {
+    "median": 94.90997949999968,
+    "mean": 99.57088349999995,
+    "min": 89.287208,
+    "max": 131.16554199999973
+  },
+  "silence_ms": {
+    "median": 477.0,
+    "mean": 472.4,
+    "min": 374.0,
+    "max": 522.0
+  },
+  "trials": [
+    {
+      "arrival_ms": 91.55066699999992,
+      "silence_ms": 455.0,
+      "ttfa_ms": 546.550667,
+      "audio_bytes": 362880,
+      "sample_rate": 24000,
+      "silence_degraded": false,
+      "trial": 1,
+      "prompt_id": "A2",
+      "error": null
+    },
+    {
+      "arrival_ms": 92.43362499999996,
+      "silence_ms": 374.0,
+      "ttfa_ms": 466.43362499999995,
+      "audio_bytes": 656640,
+      "sample_rate": 24000,
+      "silence_degraded": false,
+      "trial": 2,
+      "prompt_id": "A1",
+      "error": null
+    },
+    {
+      "arrival_ms": 91.88579200000024,
+      "silence_ms": 520.0,
+      "ttfa_ms": 611.8857920000003,
+      "audio_bytes": 312960,
+      "sample_rate": 24000,
+      "silence_degraded": false,
+      "trial": 3,
+      "prompt_id": "A5",
+      "error": null
+    },
+    {
+      "arrival_ms": 99.90791700000034,
+      "silence_ms": 470.0,
+      "ttfa_ms": 569.9079170000003,
+      "audio_bytes": 305280,
+      "sample_rate": 24000,
+      "silence_degraded": false,
+      "trial": 4,
+      "prompt_id": "A10",
+      "error": null
+    },
+    {
+      "arrival_ms": 89.287208,
+      "silence_ms": 446.0,
+      "ttfa_ms": 535.287208,
+      "audio_bytes": 289920,
+      "sample_rate": 24000,
+      "silence_degraded": false,
+      "trial": 5,
+      "prompt_id": "A7",
+      "error": null
+    },
+    {
+      "arrival_ms": 113.03383400000033,
+      "silence_ms": 494.0,
+      "ttfa_ms": 607.0338340000003,
+      "audio_bytes": 211200,
+      "sample_rate": 24000,
+      "silence_degraded": false,
+      "trial": 6,
+      "prompt_id": "A6",
+      "error": null
+    },
+    {
+      "arrival_ms": 89.50391599999996,
+      "silence_ms": 454.0,
+      "ttfa_ms": 543.503916,
+      "audio_bytes": 324480,
+      "sample_rate": 24000,
+      "silence_degraded": false,
+      "trial": 7,
+      "prompt_id": "A9",
+      "error": null
+    },
+    {
+      "arrival_ms": 131.16554199999973,
+      "silence_ms": 505.0,
+      "ttfa_ms": 636.1655419999997,
+      "audio_bytes": 343680,
+      "sample_rate": 24000,
+      "silence_degraded": false,
+      "trial": 8,
+      "prompt_id": "A3",
+      "error": null
+    },
+    {
+      "arrival_ms": 99.55399999999948,
+      "silence_ms": 484.0,
+      "ttfa_ms": 583.5539999999995,
+      "audio_bytes": 311040,
+      "sample_rate": 24000,
+      "silence_degraded": false,
+      "trial": 9,
+      "prompt_id": "A4",
+      "error": null
+    },
+    {
+      "arrival_ms": 97.38633399999941,
+      "silence_ms": 522.0,
+      "ttfa_ms": 619.3863339999994,
+      "audio_bytes": 384000,
+      "sample_rate": 24000,
+      "silence_degraded": false,
+      "trial": 10,
+      "prompt_id": "A8",
+      "error": null
+    }
+  ],
+  "failures": []
+}

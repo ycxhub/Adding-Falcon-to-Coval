@@ -1,0 +1,11 @@
+voice,family,prompt_id,asr_model,norm_version,wer,wer_percentage,ref_words,hyp_words,substitutions,insertions,deletions,duration_sec,normalized_reference,normalized_hypothesis
+Natalie,Falcon 2,sample-01,whisper-1,2,0.0,0.0,10,10,0,0,0,3.72,your order shipped this morning and should arrive by friday,your order shipped this morning and should arrive by friday
+Miles,Falcon 2,sample-01,whisper-1,2,0.0,0.0,10,10,0,0,0,3.6,your order shipped this morning and should arrive by friday,your order shipped this morning and should arrive by friday
+Gordon,Falcon 2,sample-01,whisper-1,2,0.0,0.0,10,10,0,0,0,3.16,your order shipped this morning and should arrive by friday,your order shipped this morning and should arrive by friday
+Amara,Falcon 2,sample-01,whisper-1,2,0.0,0.0,10,10,0,0,0,3.32,your order shipped this morning and should arrive by friday,your order shipped this morning and should arrive by friday
+Madison,Falcon 2,sample-01,whisper-1,2,0.0,0.0,10,10,0,0,0,3.68,your order shipped this morning and should arrive by friday,your order shipped this morning and should arrive by friday
+Tyler,Falcon 2,sample-01,whisper-1,2,0.0,0.0,10,10,0,0,0,3.16,your order shipped this morning and should arrive by friday,your order shipped this morning and should arrive by friday
+Will,Falcon 2,sample-01,whisper-1,2,0.0,0.0,10,10,0,0,0,3.76,your order shipped this morning and should arrive by friday,your order shipped this morning and should arrive by friday
+Grant,Falcon 2,sample-01,whisper-1,2,0.0,0.0,10,10,0,0,0,4.0,your order shipped this morning and should arrive by friday,your order shipped this morning and should arrive by friday
+Judith,Falcon 2,sample-01,whisper-1,2,0.0,0.0,10,10,0,0,0,3.76,your order shipped this morning and should arrive by friday,your order shipped this morning and should arrive by friday
+Ken,Gen2,sample-01,whisper-1,2,0.0,0.0,10,10,0,0,0,3.52,your order shipped this morning and should arrive by friday,your order shipped this morning and should arrive by friday

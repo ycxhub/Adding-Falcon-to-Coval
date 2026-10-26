@@ -1,0 +1,37 @@
+---
+description: Murf Falcon voices. Recommended list first; otherwise list-voices for falcon-2. Never Natalie or Gen2.
+alwaysApply: true
+---
+
+# Murf Falcon voices
+
+For every Murf synthesis, test, demo, default, and code change:
+
+- Use the Falcon model only (`falcon-2`). Never use Gen2 or any Gen2 voice.
+- Never use Natalie.
+- When the target locale is on the Falcon recommended list, use only a voice from that row: https://murf.ai/falcon-2/voices
+- When the locale is not on that list, call the Falcon list-voices endpoint and use a voice it returns for that locale. Do not ask first.
+  - `GET https://api.murf.ai/v1/speech/voices?model=falcon-2`
+  - From this repo: `python3 tools/murf_api_playground.py list --model falcon-2`
+- Still reject Natalie and any voice that is Gen2, even if the endpoint returns it.
+- Never use the list voices endpoint without model=falcon-2 - `GET https://api.murf.ai/v1/speech/voices?model=falcon-2`
+
+Recommended list (locale → female / male), captured 2026-10-26:
+
+- en-US US English: Judith, Nimisha, Abirami, Heidi, Giulia / Joshua, Carlos, Gordon, Dirk
+- en-UK UK English: Sharon, Lydia / Joshua, Bertie
+- hi-IN Hindi: Ayushi, Pooja, Abirami, Namrita / Karthikeyan, Abhinav, Hardik, Madhavan
+- en-IN Indian English: Pooja, Anisha, Anusha, Sunaina / Abhinav, Samar, Aman
+- ta-IN Tamil: Anisha, Prajakta, Pooja / Karthikeyan, Samar, Abhinav
+- te-IN Telugu: Anisha / Samar
+- kn-IN Kannada: Harshitha, Anisha, Pooja / Samar, Abhinav
+- mr-IN Marathi: Prajakta, Anisha, Harpreet / Vaibhav, Samar, Abhinav
+- pa-IN Punjabi: Harpreet / Harman
+- bn-IN Bangla: Debarati / Subhankar
+- gu-IN Gujarati: Diya, Anusha, Harpreet / Hardik, Abhinav, Subhankar
+- ml-IN Malayalam: Nimisha / Madhavan
+- as-IN Assamese: Anisha / Samar
+- od-IN Odia: Anisha / Samar
+- es-MX Mexican Spanish: Valeria, Luisa / Carlos
+
+Refresh the recommended list from the page when it changes. Locales absent from it are resolved from the Falcon list-voices response, not from this file.

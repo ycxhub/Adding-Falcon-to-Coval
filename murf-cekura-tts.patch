@@ -1,0 +1,287 @@
+diff --git a/tts-bench/.env.example b/tts-bench/.env.example
+index ef4c920..de66882 100644
+--- a/tts-bench/.env.example
++++ b/tts-bench/.env.example
+@@ -14,3 +14,4 @@ SONIOX_API_KEY=
+ DEEPINFRA_API_KEY=
+ AZURE_SPEECH_KEY=
+ HUME_API_KEY=
++MURF_API_KEY=
+diff --git a/tts-bench/README.md b/tts-bench/README.md
+index 70d7060..c1aaa3f 100644
+--- a/tts-bench/README.md
++++ b/tts-bench/README.md
+@@ -160,6 +160,7 @@ vendored):
+ | `soniox` | `tts-rt-v2` | websocket, one stream per context | yes | `cancel` | yes | yes | |
+ | `deepinfra` | `Qwen/Qwen3-TTS` | HTTP streaming (OpenAI-compatible) | no | no | no | no | whole text per request; any model DeepInfra hosts on this endpoint is a lineup entry |
+ | `azure-speech` | `MAI-Voice-2.1-Flash`, `MAI-Voice-2.1` | HTTP streaming, SSML | no | no | no | yes | whole text per request; the model is the voice name's suffix (`en-US-Harper:MAI-Voice-2.1-Flash`); the region is the host, option `region` (default `eastus2`) |
++| `murf` | `falcon-2.1` | websocket `/v1/speech/stream-input`, US-East host | yes | no | yes | no | `api-key` on the handshake; `voice_config` before t0; text frames share a `context_id`; `predictive_chunking: lenient`, Murf's voice-agent setting; `end: true` flushes; `clear` only drops sentences not yet in synthesis, so it is not a cancel |
+ 
+ Each model runs with one fixed voice, set in the registry: a female US English
+ stock voice from that provider. `--all-models` runs the whole lineup of a
+diff --git a/tts-bench/tests/test_tts_adapters.py b/tts-bench/tests/test_tts_adapters.py
+index 1e94be8..9efe491 100644
+--- a/tts-bench/tests/test_tts_adapters.py
++++ b/tts-bench/tests/test_tts_adapters.py
+@@ -691,6 +691,98 @@ class TestHume:
+         assert HumeAdapter.unsupported_reason(TTSConfig(model="octave-2", voice="v", sample_rate=24000)) is not None
+ 
+ 
++class TestMurf:
++    async def test_voice_config_is_before_t0_and_end_closes_the_utterance(self):
++        from tts_bench.adapters.murf import MurfAdapter
++
++        murf, sent = adapter(MurfAdapter, "falcon-2.1", "en-US-judith")
++        synthesis = await murf.open_context("main")
++        assert synthesis.t0 is None
++        assert sent[0] == {"voice_config": {"voiceId": "en-US-judith", "locale": "en-US"}, "context_id": "main"}
++        await murf.send("main", "Hello ")
++        await murf.send("main", "there.")
++        await murf.finish("main")
++        assert sent[1:] == [
++            {"text": "Hello ", "context_id": "main", "end": False, "predictive_chunking": "lenient"},
++            {"text": "there.", "context_id": "main", "end": False},
++            {"text": "", "context_id": "main", "end": True},
++        ]
++        assert synthesis.t0 is not None and synthesis.t_input_done is not None
++
++    async def test_the_locale_follows_the_voice_id_unless_an_option_names_one(self):
++        from tts_bench.adapters.murf import MurfAdapter
++
++        uk, sent = adapter(MurfAdapter, "falcon-2.1", "en-UK-sharon")
++        await uk.open_context("main")
++        assert sent[0]["voice_config"] == {"voiceId": "en-UK-sharon", "locale": "en-UK"}
++        clock = Clock()
++        named = MurfAdapter(TTSConfig("falcon-2.1", "Judith", options=(("locale", "en-US"),)), "unused", EventLog(clock), clock)
++        bare = MurfAdapter(TTSConfig("falcon-2.1", "Judith"), "unused", EventLog(clock), clock)
++        assert named._locale() == "en-US" and bare._locale() == "en-US"
++
++    async def test_audio_then_final_ends_the_turn_and_a_wav_header_is_stripped(self):
++        import base64
++
++        from tts_bench.adapters.murf import MurfAdapter
++
++        murf, _ = adapter(MurfAdapter, "falcon-2.1", "en-US-judith")
++        synthesis = await murf.open_context("main")
++        riff = b"RIFF" + b"\x00" * 32 + b"data" + b"\x00" * 4 + b"\x01\x00" * 8
++        murf._on_message({"audio": base64.b64encode(riff).decode(), "context_id": "main", "trace_id": "tr"})
++        assert bytes(synthesis.pcm) == b"\x01\x00" * 8
++        assert not synthesis.done.is_set()
++        murf._on_message({"final": True, "context_id": "main", "concurrency": {"region": "us-east-2", "limit": 6, "used": 1}})
++        assert synthesis.done.is_set()
++        assert synthesis.meta["trace_id"] == "tr" and synthesis.meta["region"] == "us-east-2"
++
++    async def test_final_may_carry_audio_on_the_same_envelope(self):
++        import base64
++
++        from tts_bench.adapters.murf import MurfAdapter
++
++        murf, _ = adapter(MurfAdapter, "falcon-2.1", "en-US-judith")
++        synthesis = await murf.open_context("main")
++        murf._on_message({"audio": base64.b64encode(b"\x01\x00").decode(), "context_id": None, "final": True})
++        assert bytes(synthesis.pcm) == b"\x01\x00" and synthesis.done.is_set()
++
++    async def test_interleaved_responses_go_to_their_own_context(self):
++        import base64
++
++        from tts_bench.adapters.murf import MurfAdapter
++
++        murf, _ = adapter(MurfAdapter, "falcon-2.1", "en-US-judith")
++        a = await murf.open_context("a")
++        b = await murf.open_context("b")
++        murf._on_message({"audio": base64.b64encode(b"\x01\x00").decode(), "context_id": "b"})
++        murf._on_message({"final": True, "context_id": "b"})
++        assert b.done.is_set() and b.pcm and not a.done.is_set() and not a.pcm
++
++    async def test_the_context_limit_is_a_refusal_and_other_errors_are_failures(self):
++        from tts_bench.adapters.base import is_refusal
++        from tts_bench.adapters.murf import MurfAdapter
++
++        murf, _ = adapter(MurfAdapter, "falcon-2.1", "en-US-judith")
++        over = await murf.open_context("over")
++        murf._on_message({"error": "Too many active contexts", "error_code": "ACTIVE_CONTEXT_LIMIT_EXCEEDED",
++                          "fatal": True, "context_id": "over", "concurrency": {"region": "us-east-2", "limit": 6, "used": 6}})
++        assert over.done.is_set() and is_refusal(over.error)
++        broken = await murf.open_context("broken")
++        murf._on_message({"error": "Something failed", "error_code": "INTERNAL_ERROR", "fatal": True, "context_id": "broken"})
++        assert broken.error == "INTERNAL_ERROR: Something failed" and not is_refusal(broken.error)
++
++    def test_cancel_is_a_declared_exclusion_and_the_handshake_carries_the_audio_contract(self):
++        from tts_bench.adapters.murf import MurfAdapter
++        from tts_bench.registry import PENDING
++
++        murf, _ = adapter(MurfAdapter, "falcon-2.1", "en-US-judith")
++        assert murf.url.startswith("wss://us-east.api.murf.ai/v1/speech/stream-input?")
++        assert "model=falcon-2.1" in murf.url and "format=PCM" in murf.url and "channel_type=MONO" in murf.url
++        assert "api-key=unused" in murf.url
++        assert MurfAdapter.unsupported_reason(TTSConfig("falcon-2.1", "en-US-judith"), ("cancel",)) == "murf has no cancel"
++        assert MurfAdapter.unsupported_reason(TTSConfig("falcon-2.1", "en-US-judith"), ("streamed_input", "continuation")) is None
++        assert PROVIDERS["murf"].voice_for("falcon-2.1") == "en-US-judith" and "murf" not in PENDING
++
++
+ class TestLineupRates:
+     def test_a_model_that_emits_one_rate_names_it_and_the_rest_keep_the_default(self):
+         assert PROVIDERS["hume"].rate_for("octave-2") == 48000
+diff --git a/tts-bench/tts_bench/adapters/murf.py b/tts-bench/tts_bench/adapters/murf.py
+new file mode 100644
+index 0000000..14ad9a7
+--- /dev/null
++++ b/tts-bench/tts_bench/adapters/murf.py
+@@ -0,0 +1,125 @@
++"""Murf Falcon 2.1 over its streaming websocket, ``/v1/speech/stream-input``.
++
++Auth and the audio contract sit on the handshake query string (``api-key``,
++``model``, ``sample_rate``, ``channel_type=MONO``, ``format=PCM``). A
++``voice_config`` frame names the voice, locale and ``context_id`` before t0.
++Text goes in as JSON frames on that context; ``end: true`` flushes and the
++server answers with base64 PCM then ``final: true``. The socket stays open
++after ``final``, so the receive loop must break on the flag.
++
++The host is the US-East region, pinned rather than left to the global router,
++since the campaign runs from US East. ``predictive_chunking`` is ``lenient``,
++the setting Murf recommends for voice agents (option ``predictive_chunking``);
++it rides on the first text frame, as the API takes it beside ``text``.
++
++Audio is requested as raw PCM (s16le, no header). ``format=WAV`` would prefix
++the first chunk; a header that still arrives is stripped so the timeline holds
++samples only.
++
++There is no cancel. ``clear: true`` drops only sentences not yet in synthesis:
++the one in flight is still delivered (3.8 s of audio after a clear 300 ms into
++``long.prep``), with no acknowledgement and no ``final``. So cancel is a
++declared exclusion rather than a measured one.
++
++A context over the account's concurrency limit gets
++``ACTIVE_CONTEXT_LIMIT_EXCEEDED`` and the socket closes with 4029; that is the
++account refusing, so it is reported as a refusal.
++
++Reference: https://murf.ai/api/docs/api-reference/text-to-speech/stream-input
++"""
++
++from __future__ import annotations
++
++import base64
++from typing import Any, ClassVar
++from urllib.parse import urlencode
++
++from tts_bench.adapters._ws import WebSocketAdapter
++from tts_bench.adapters.base import AdapterError
++
++_RIFF = b"RIFF"
++_WAV_HEADER_BYTES = 44
++
++
++def pcm_from_chunk(chunk: bytes) -> bytes:
++    """Raw PCM from one chunk: a leading WAV header dropped, anything else passed through."""
++    if chunk.startswith(_RIFF) and len(chunk) > _WAV_HEADER_BYTES:
++        data = chunk.find(b"data")
++        return chunk[data + 8:] if data != -1 else chunk[_WAV_HEADER_BYTES:]
++    return chunk
++
++
++class MurfAdapter(WebSocketAdapter):
++    name: ClassVar[str] = "murf"
++    supports_cancel: ClassVar[bool] = False
++    native_rates: ClassVar[tuple[int, ...]] = (8000, 16000, 24000, 44100, 48000)
++    setup_excluded: ClassVar[str] = "TCP, TLS, websocket upgrade, voice_config frame"
++    base = "wss://us-east.api.murf.ai/v1/speech/stream-input"
++
++    def __init__(self, *args: Any, **kwargs: Any) -> None:
++        super().__init__(*args, **kwargs)
++        self._active: str | None = None
++        self._traces: dict[str, str] = {}
++
++    @property
++    def url(self) -> str:  # type: ignore[override]
++        return f"{self.base}?" + urlencode({
++            "api-key": self.api_key,
++            "model": self.config.model,
++            "sample_rate": self.config.sample_rate,
++            "channel_type": "MONO",
++            "format": "PCM",
++        })
++
++    def _locale(self) -> str:
++        """The option, else the locale a voice id like ``en-US-judith`` carries, else the item's language."""
++        if locale := self.config.option("locale"):
++            return locale
++        parts = self.config.voice.split("-")
++        if len(parts) >= 3:
++            return f"{parts[0]}-{parts[1]}"
++        language = self.config.language or "en-US"
++        return "en-US" if language.lower() == "en" else language
++
++    def _context(self, context_id: str | None) -> str | None:
++        return context_id or self._active
++
++    async def _connect(self) -> None:
++        try:
++            await super()._connect()
++        except AdapterError as exc:
++            raise AdapterError(str(exc).replace(self.api_key, "<redacted>")) from exc.__cause__
++
++    async def _open_context(self, context_id: str) -> None:
++        self._active = context_id
++        await self._send_json({
++            "voice_config": {"voiceId": self.config.voice, "locale": self._locale()},
++            "context_id": context_id,
++        })
++
++    async def _send_text(self, context_id: str, text: str, first: bool) -> None:
++        payload: dict[str, Any] = {"text": text, "context_id": context_id, "end": False}
++        if first:
++            payload["predictive_chunking"] = self.config.option("predictive_chunking", "lenient")
++        await self._send_json(payload)
++
++    async def _finish(self, context_id: str) -> None:
++        await self._send_json({"text": "", "context_id": context_id, "end": True})
++
++    def _on_message(self, message: dict[str, Any]) -> None:
++        context_id = self._context(message.get("context_id"))
++        if context_id and message.get("trace_id"):
++            self._traces.setdefault(context_id, message["trace_id"])
++        error = message.get("error") or message.get("errorMessage")
++        if error:
++            code = message.get("error_code")
++            if code == "ACTIVE_CONTEXT_LIMIT_EXCEEDED":
++                error = f"concurrency limit exceeded {message.get('concurrency') or ''}: {error}"
++            self._on_error(context_id, f"{code}: {error}" if code else str(error))
++            return
++        audio = message.get("audio")
++        if audio and context_id:
++            self._on_audio(context_id, pcm_from_chunk(base64.b64decode(audio)))
++        if message.get("final") and context_id:
++            self._on_done(context_id, trace_id=message.get("trace_id") or self._traces.get(context_id),
++                          region=(message.get("concurrency") or {}).get("region"))
+diff --git a/tts-bench/tts_bench/registry.py b/tts-bench/tts_bench/registry.py
+index 4454358..9b4ba7b 100644
+--- a/tts-bench/tts_bench/registry.py
++++ b/tts-bench/tts_bench/registry.py
+@@ -30,6 +30,7 @@ from tts_bench.adapters.gemini_tts import GeminiTTSAdapter
+ from tts_bench.adapters.gradium import GradiumAdapter
+ from tts_bench.adapters.hume import HumeAdapter
+ from tts_bench.adapters.inworld import InworldAdapter
++from tts_bench.adapters.murf import MurfAdapter
+ from tts_bench.adapters.openai_tts import OpenAITTSAdapter
+ from tts_bench.adapters.rime import RimeAdapter
+ from tts_bench.adapters.smallest import SmallestAdapter
+@@ -182,11 +183,18 @@ PROVIDERS: dict[str, ProviderEntry] = {
+         notes="HTTP SSML, raw PCM streamed back; the model is the voice name's suffix; whole text per request; "
+               "region is the host (option region, default eastus)",
+     ),
++    "murf": ProviderEntry(
++        "murf", MurfAdapter, "MURF_API_KEY",
++        (Model("falcon-2.1", "en-US-judith"),),
++        notes="websocket /v1/speech/stream-input on the us-east host; api-key on the handshake; voice_config before t0; "
++              "text frames share a context_id; predictive_chunking lenient (option); end:true flushes; "
++              "no cancel (clear only drops sentences not yet in synthesis)",
++    ),
+ }
+ 
+ # Protocols not yet spoken. Listed so the gap is a fact, not an oversight.
+ PENDING = ("qwen-audio", "speechify", "minimax",
+-           "murf", "hume", "lmnt", "google-cloud-tts", "polly")
++           "hume", "lmnt", "google-cloud-tts", "polly")
+ 
+ 
+ def lineup() -> list[tuple[str, Model]]:

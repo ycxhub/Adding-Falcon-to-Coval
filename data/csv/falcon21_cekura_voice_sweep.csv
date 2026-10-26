@@ -1,0 +1,16 @@
+voice_id,recordings,utmos_mean,leading_silence_p50_ms,leading_silence_max_ms,accuracy_deepgram_pct,accuracy_whisper_pct
+en-US-alina,20,4.35,46,64,99.2,99.6
+en-US-amara,20,4.344,0,27,99.2,99.4
+en-US-josie,20,4.327,60,99,98.8,99.6
+en-US-abigail,20,4.325,0,20,98.8,99.0
+en-US-madison,20,4.317,42,89,99.2,99.4
+en-US-judith,20,4.285,52,142,97.6,99.0
+en-US-michelle,20,4.267,48,77,91.4,99.0
+en-US-phoebe,20,4.251,54,93,98.8,98.8
+en-US-natalie,20,4.228,43,96,98.0,99.6
+en-UK-heidi,20,4.2,3,26,95.3,98.8
+en-US-ariana,20,4.174,49,74,99.2,100.0
+en-US-luna,20,4.152,32,61,99.0,99.6
+en-US-daisy,20,4.152,37,862,99.6,99.0
+en-US-alicia,20,4.135,36,93,99.8,99.2
+en-US-molly,20,4.114,2,93,98.6,99.2
